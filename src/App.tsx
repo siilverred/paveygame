@@ -154,6 +154,72 @@ export default function App() {
     }
   };
 
+  // Device layout detection (Mobile vs PC / Laptop)
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(window.innerWidth < 768 || (isTouch && window.innerWidth < 1024));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Touch Swipe Gesture State & Handlers
+  const touchStartY = useRef<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchPlayerId = useRef<'p1' | 'p2'>('p1');
+  const lastSwipeTime = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (phase !== 'playing') return;
+    const touch = e.touches[0];
+    touchStartY.current = touch.clientY;
+    touchStartX.current = touch.clientX;
+
+    if (gameMode === 'pvp') {
+      const screenWidth = window.innerWidth;
+      touchPlayerId.current = touch.clientX < screenWidth / 2 ? 'p1' : 'p2';
+    } else {
+      touchPlayerId.current = 'p1';
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (phase !== 'playing' || touchStartY.current === null || touchStartX.current === null) return;
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - touchStartY.current;
+    const deltaX = touch.clientX - touchStartX.current;
+    const now = Date.now();
+
+    // Trigger swipe when vertical movement exceeds 22px, with 160ms throttle
+    if (Math.abs(deltaY) > 22 && Math.abs(deltaY) > Math.abs(deltaX) && now - lastSwipeTime.current > 160) {
+      const direction = deltaY < 0 ? 'up' : 'down';
+      lastSwipeTime.current = now;
+      touchStartY.current = touch.clientY; // resets anchor so continuous swipe feels natural!
+
+      if (touchPlayerId.current === 'p1') {
+        engineRef.current?.movePlayer1Lane(direction);
+      } else {
+        engineRef.current?.movePlayer2Lane(direction);
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(18);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartY.current = null;
+    touchStartX.current = null;
+  };
+
   // Initialize Game Engine
   useEffect(() => {
     const settings: GameSettings = {
@@ -424,12 +490,14 @@ export default function App() {
 
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-zinc-950 flex justify-center items-center font-sans select-none antialiased overflow-hidden p-0 sm:p-4">
-      {/* ── PHONE FRAME CONTAINER (100% RESPONSIVE MOBILE & PC) ── */}
+      {/* ── RESPONSIVE CONTAINER (FULL-SCREEN MOBILE VS BEAUTIFUL PC FRAME) ── */}
       <div
         className={`w-full flex flex-col bg-[#F6F8FC] relative overflow-hidden transition-all duration-300 ${
-          boothMode
-            ? 'max-w-5xl h-full sm:h-[88vh] shadow-[0_0_80px_rgba(59,91,255,0.3)] rounded-none sm:rounded-3xl border sm:border-ink-200'
-            : 'max-w-[440px] h-full sm:h-[92vh] shadow-[0_0_60px_rgba(0,0,0,0.5)] rounded-none sm:rounded-[36px] border sm:border-ink-200'
+          isMobile
+            ? 'w-full h-full max-w-none rounded-none border-none shadow-none'
+            : boothMode
+            ? 'max-w-5xl h-full sm:h-[88vh] shadow-[0_0_80px_rgba(59,91,255,0.3)] rounded-3xl border border-ink-200'
+            : 'max-w-[440px] h-full sm:h-[92vh] shadow-[0_0_60px_rgba(0,0,0,0.5)] rounded-[36px] border border-ink-200'
         }`}
       >
         {/* ── TOP HEADER BAR (RESPONSIVE FOR MOBILE & PC) ── */}
@@ -614,11 +682,16 @@ export default function App() {
           </div>
         </header>
 
-        {/* ── MAIN CANVAS AREA ── */}
-        <main className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-[#F8FAFC]">
+        {/* ── MAIN CANVAS AREA (NATIVE TOUCH SWIPE GESTURE SUPPORT) ── */}
+        <main
+          className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-[#F8FAFC] touch-none select-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <canvas
             ref={canvasRef}
-            className="w-full h-full block cursor-pointer"
+            className="w-full h-full block cursor-pointer touch-none"
             onClick={() => {
               if (phase === 'idle') startGame();
             }}
@@ -835,56 +908,139 @@ export default function App() {
                 )}
               </AnimatePresence>
 
-              {/* ── ON-SCREEN TOUCH CONTROLS (RESPONSIVE FOR MOBILE & PC) ── */}
-              <div className="pointer-events-auto flex items-center justify-between gap-3 mt-auto">
-                {/* Player 1 Lane Switch Buttons (Blue) */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] sm:text-[10px] font-black text-brand-600 uppercase">P1 (W / S)</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => engineRef.current?.movePlayer1Lane('up')}
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-brand-300 text-brand-700 active:bg-brand-500 active:text-white flex flex-col items-center justify-center press shadow-card"
-                      aria-label="P1 Lane Atas"
-                    >
-                      <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7" />
-                      <span className="text-[8px] sm:text-[9px] font-black uppercase">ATAS</span>
-                    </button>
-                    <button
-                      onClick={() => engineRef.current?.movePlayer1Lane('down')}
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-brand-300 text-brand-700 active:bg-brand-500 active:text-white flex flex-col items-center justify-center press shadow-card"
-                      aria-label="P1 Lane Bawah"
-                    >
-                      <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7" />
-                      <span className="text-[8px] sm:text-[9px] font-black uppercase">BAWAH</span>
-                    </button>
-                  </div>
-                </div>
+              {/* ── MOBILE VS PC CONTROLS OVERLAY ── */}
+              {isMobile ? (
+                /* Mobile Touch Experience: Swipe Indicator & Compact Thumb Triggers */
+                <div className="flex flex-col gap-2 w-full mt-auto pb-1">
+                  {gameMode === 'pvp' ? (
+                    /* 2-Player Mobile Split View */
+                    <div className="pointer-events-auto flex items-center justify-between w-full gap-2">
+                      {/* P1 Left Zone */}
+                      <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-2xl border-2 border-brand-300 shadow-card">
+                        <span className="text-[10px] font-black text-brand-600 px-1">P1</span>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer1Lane('up')}
+                          className="w-11 h-11 rounded-xl bg-brand-50 active:bg-brand-500 active:text-white text-brand-700 flex items-center justify-center press shadow-sm"
+                          aria-label="P1 Atas"
+                        >
+                          <ChevronUp className="w-6 h-6" />
+                        </button>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer1Lane('down')}
+                          className="w-11 h-11 rounded-xl bg-brand-50 active:bg-brand-500 active:text-white text-brand-700 flex items-center justify-center press shadow-sm"
+                          aria-label="P1 Bawah"
+                        >
+                          <ChevronDown className="w-6 h-6" />
+                        </button>
+                      </div>
 
-                {/* Player 2 Lane Switch Buttons (Coral, if PvP mode) */}
-                {gameMode === 'pvp' && (
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-[9px] sm:text-[10px] font-black text-orange-600 uppercase">P2 (Panah / I-K / Pg)</span>
+                      {/* Center Swipe Hint */}
+                      <div className="pointer-events-none text-center">
+                        <span className="px-2.5 py-1 rounded-full bg-black/60 text-white text-[9px] font-black backdrop-blur-md border border-white/20 shadow-md">
+                          👈 P1 Geser | P2 Geser 👉
+                        </span>
+                      </div>
+
+                      {/* P2 Right Zone */}
+                      <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-2xl border-2 border-orange-300 shadow-card">
+                        <span className="text-[10px] font-black text-orange-600 px-1">P2</span>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer2Lane('up')}
+                          className="w-11 h-11 rounded-xl bg-orange-50 active:bg-orange-500 active:text-white text-orange-700 flex items-center justify-center press shadow-sm"
+                          aria-label="P2 Atas"
+                        >
+                          <ChevronUp className="w-6 h-6" />
+                        </button>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer2Lane('down')}
+                          className="w-11 h-11 rounded-xl bg-orange-50 active:bg-orange-500 active:text-white text-orange-700 flex items-center justify-center press shadow-sm"
+                          aria-label="P2 Bawah"
+                        >
+                          <ChevronDown className="w-6 h-6" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Solo & Vs Bot Mobile Experience: Fullscreen Swipe + Ergonomic Thumb Trigger */
+                    <div className="flex items-end justify-between w-full pointer-events-none">
+                      {/* Floating Swipe Hint Pill */}
+                      <div className="flex items-center gap-1.5 bg-ink-900/75 backdrop-blur-md px-3.5 py-2 rounded-full text-white text-[11px] font-black border border-white/20 shadow-glow">
+                        <span className="text-amber-300 animate-pulse text-xs">👆</span>
+                        <span>Geser Layar Naik / Turun</span>
+                      </div>
+
+                      {/* Compact Floating Thumb Triggers (Unobtrusive & Right-Hand Ergonomic) */}
+                      <div className="pointer-events-auto flex flex-col gap-1.5 ml-auto">
+                        <button
+                          onClick={() => engineRef.current?.movePlayer1Lane('up')}
+                          className="w-12 h-12 rounded-2xl bg-white/90 active:bg-brand-500 active:text-white text-brand-700 backdrop-blur-md border border-brand-200 flex items-center justify-center shadow-card press"
+                          aria-label="P1 Atas"
+                        >
+                          <ChevronUp className="w-6 h-6" />
+                        </button>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer1Lane('down')}
+                          className="w-12 h-12 rounded-2xl bg-white/90 active:bg-brand-500 active:text-white text-brand-700 backdrop-blur-md border border-brand-200 flex items-center justify-center shadow-card press"
+                          aria-label="P1 Bawah"
+                        >
+                          <ChevronDown className="w-6 h-6" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Desktop PC / Laptop: Spacious Buttons with Keyboard Labels (W/S, Arrow Keys) */
+                <div className="pointer-events-auto flex items-center justify-between gap-3 mt-auto">
+                  {/* Player 1 Lane Switch Buttons (Blue) */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] sm:text-[10px] font-black text-brand-600 uppercase">P1 (W / S)</span>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => engineRef.current?.movePlayer2Lane('up')}
-                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-orange-300 text-orange-700 active:bg-orange-500 active:text-white flex flex-col items-center justify-center press shadow-card"
-                        aria-label="P2 Lane Atas"
+                        onClick={() => engineRef.current?.movePlayer1Lane('up')}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-brand-300 text-brand-700 active:bg-brand-500 active:text-white flex flex-col items-center justify-center press shadow-card"
+                        aria-label="P1 Lane Atas"
                       >
                         <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7" />
                         <span className="text-[8px] sm:text-[9px] font-black uppercase">ATAS</span>
                       </button>
                       <button
-                        onClick={() => engineRef.current?.movePlayer2Lane('down')}
-                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-orange-300 text-orange-700 active:bg-orange-500 active:text-white flex flex-col items-center justify-center press shadow-card"
-                        aria-label="P2 Lane Bawah"
+                        onClick={() => engineRef.current?.movePlayer1Lane('down')}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-brand-300 text-brand-700 active:bg-brand-500 active:text-white flex flex-col items-center justify-center press shadow-card"
+                        aria-label="P1 Lane Bawah"
                       >
                         <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7" />
                         <span className="text-[8px] sm:text-[9px] font-black uppercase">BAWAH</span>
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Player 2 Lane Switch Buttons (Coral, if PvP mode) */}
+                  {gameMode === 'pvp' && (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[9px] sm:text-[10px] font-black text-orange-600 uppercase">P2 (Panah / I-K / Pg)</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => engineRef.current?.movePlayer2Lane('up')}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-orange-300 text-orange-700 active:bg-orange-500 active:text-white flex flex-col items-center justify-center press shadow-card"
+                          aria-label="P2 Lane Atas"
+                        >
+                          <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7" />
+                          <span className="text-[8px] sm:text-[9px] font-black uppercase">ATAS</span>
+                        </button>
+                        <button
+                          onClick={() => engineRef.current?.movePlayer2Lane('down')}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-xl border-2 border-orange-300 text-orange-700 active:bg-orange-500 active:text-white flex flex-col items-center justify-center press shadow-card"
+                          aria-label="P2 Lane Bawah"
+                        >
+                          <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7" />
+                          <span className="text-[8px] sm:text-[9px] font-black uppercase">BAWAH</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1320,8 +1476,10 @@ export default function App() {
                         2
                       </span>
                       <div>
-                        <strong className="text-ink-900 block mb-0.5">Kontrol, Kecepatan & Survival:</strong>
-                        P1: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">W</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">S</kbd> atau Panah • P2: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">Panah</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">I-K</kbd>. Game <strong>TIDAK ADA TIMER</strong>, speed bertambah perlahan-lahan seiring jarak & waktu tempuh, dan game berakhir saat nyawa (3 ❤️) habis!
+                        <strong className="text-ink-900 block mb-0.5">Kontrol, Kecepatan &amp; Survival:</strong>
+                        📱 <strong>Di HP/Tablet:</strong> Cukup <strong>Geser / Swipe layar Naik &amp; Turun</strong> untuk pindah jalur!
+                        <br />
+                        💻 <strong>Di Laptop/PC:</strong> Gunakan <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">W</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">S</kbd> atau Panah Atas/Bawah. Speed bertambah perlahan-lahan &amp; game over saat nyawa (3 ❤️) habis!
                       </div>
                     </div>
 

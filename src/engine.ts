@@ -192,7 +192,7 @@ export class GameEngine {
   ): PlayerState {
     const isP1 = id === 'p1';
     const initialLane: Lane = isP1 ? 1 : 2;
-    const initialX = isP1 ? (this.gameMode === 'solo' ? 130 : 120) : 165;
+    const initialX = 130;
     return {
       id,
       name,
@@ -237,9 +237,16 @@ export class GameEngine {
     this.width = width;
     this.height = height;
 
-    // Balanced golden ratio: sky 38%, road 48%, bottom promenade 14%
-    this.roadHeight = Math.min(240, height * 0.48);
-    this.roadY = Math.floor(height * 0.38);
+    const isPortrait = height > width * 1.05;
+    if (isPortrait) {
+      // Mobile portrait layout: comfortable center road height
+      this.roadHeight = Math.min(310, Math.max(220, height * 0.46));
+      this.roadY = Math.floor((height - this.roadHeight) * 0.44);
+    } else {
+      // Landscape / Desktop PC layout
+      this.roadHeight = Math.min(250, height * 0.48);
+      this.roadY = Math.floor(height * 0.38);
+    }
     this.laneHeight = this.roadHeight / 3;
   }
 
@@ -520,11 +527,13 @@ export class GameEngine {
     if (!bot || !bot.isAlive) return;
 
     this.botReactionTimer += dt;
-    if (this.botReactionTimer < 0.20) return;
+    // Humanized reaction time (~0.35s) so the bot does not instantly out-react the player
+    if (this.botReactionTimer < 0.35) return;
     this.botReactionTimer = 0;
 
     const currentLane = bot.targetLane;
-    const lookahead = Math.min(380, 230 * Math.sqrt(speedMultiplier));
+    // Balanced lookahead that gives a natural sense of anticipation
+    const lookahead = Math.min(270, 180 * Math.sqrt(speedMultiplier));
 
     // Check danger in bot's current lane ahead
     const immediateThreat = this.obstacles.find(
@@ -533,12 +542,17 @@ export class GameEngine {
 
     const isLaneSafe = (lane: Lane) => {
       return !this.obstacles.some(
-        (o) => o.active && o.lane === lane && o.x > bot.x - 25 && o.x < bot.x + lookahead + 30
+        (o) => o.active && o.lane === lane && o.x > bot.x - 20 && o.x < bot.x + lookahead + 25
       );
     };
 
     if (immediateThreat) {
-      // Must dodge to a genuinely safe lane
+      // Natural hesitation at high speeds (~10% chance) so the bot faces realistic survival pressure
+      if (speedMultiplier > 1.3 && Math.random() < 0.10) {
+        return; // slight hesitation
+      }
+
+      // Must dodge to a safe lane
       const candidateLanes: Lane[] = [];
       if (currentLane > 0) candidateLanes.push((currentLane - 1) as Lane);
       if (currentLane < 2) candidateLanes.push((currentLane + 1) as Lane);
@@ -552,12 +566,12 @@ export class GameEngine {
         for (const lane of safeLanes) {
           let val = 1;
           const col = this.collectibles.find(
-            (c) => c.active && c.lane === lane && c.x > bot.x - 10 && c.x < bot.x + 280
+            (c) => c.active && c.lane === lane && c.x > bot.x - 10 && c.x < bot.x + 220
           );
           if (col) {
-            if (col.type === 'destination') val = 50;
-            else if (col.type === 'star') val = 30;
-            else if (col.type === 'coin') val = 15;
+            if (col.type === 'destination') val = 40;
+            else if (col.type === 'star') val = 25;
+            else if (col.type === 'coin') val = 10;
           }
           if (val > bestVal) {
             bestVal = val;
@@ -569,22 +583,31 @@ export class GameEngine {
         bot.laneTransitionProgress = 0;
       }
     } else {
-      // Current lane is safe. Collect high value items in adjacent safe lanes if available
-      const candidateLanes: Lane[] = [];
-      if (currentLane > 0) candidateLanes.push((currentLane - 1) as Lane);
-      if (currentLane < 2) candidateLanes.push((currentLane + 1) as Lane);
+      // Current lane is safe.
+      // FAIR PLAY: The bot only switches lanes for items occasionally (35% chance)
+      // and NEVER jumps into Player 1's active lane to steal their items!
+      if (Math.random() < 0.35) {
+        const candidateLanes: Lane[] = [];
+        if (currentLane > 0) candidateLanes.push((currentLane - 1) as Lane);
+        if (currentLane < 2) candidateLanes.push((currentLane + 1) as Lane);
 
-      for (const lane of candidateLanes) {
-        if (!isLaneSafe(lane)) continue;
+        for (const lane of candidateLanes) {
+          if (!isLaneSafe(lane)) continue;
 
-        const col = this.collectibles.find(
-          (c) => c.active && c.lane === lane && c.x > bot.x + 40 && c.x < bot.x + 260
-        );
+          // Never steal Player 1's line!
+          if (this.player1.isAlive && (this.player1.lane === lane || this.player1.targetLane === lane)) {
+            continue;
+          }
 
-        if (col && (col.type === 'destination' || col.type === 'star' || col.type === 'coin')) {
-          bot.targetLane = lane;
-          bot.laneTransitionProgress = 0;
-          break;
+          const col = this.collectibles.find(
+            (c) => c.active && c.lane === lane && c.x > bot.x + 60 && c.x < bot.x + 240
+          );
+
+          if (col && (col.type === 'destination' || col.type === 'star')) {
+            bot.targetLane = lane;
+            bot.laneTransitionProgress = 0;
+            break;
+          }
         }
       }
     }
@@ -675,50 +698,62 @@ export class GameEngine {
     });
 
     const freeLanes = availableLanes.filter((l) => l !== blockedLane);
-    const cLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
 
-    const cRand = Math.random();
-    if (cRand < 0.50) {
-      const cityDaySpots = getCityDaySpots(this.currentCity, this.currentDay);
-      const spot = cityDaySpots[this.spotSpawnIndex % cityDaySpots.length];
-      this.spotSpawnIndex++;
+    const spawnItemInLane = (lane: Lane, offsetX: number = 0) => {
+      const cRand = Math.random();
+      if (cRand < 0.45) {
+        const cityDaySpots = getCityDaySpots(this.currentCity, this.currentDay);
+        const spot = cityDaySpots[this.spotSpawnIndex % cityDaySpots.length];
+        this.spotSpawnIndex++;
 
-      this.collectibles.push({
-        id: `spot_${spot.id}_${Date.now()}`,
-        type: 'destination',
-        vibe: spot.vibe,
-        vibeName: spot.category,
-        spotName: spot.name,
-        spotIcon: spot.icon,
-        lane: cLane,
-        x: this.width + 120,
-        value: 25,
-        active: true,
-        scale: 1.1,
-        rotation: 0,
-      });
-    } else if (cRand < 0.80) {
-      this.collectibles.push({
-        id: `col_${Date.now()}_${Math.random()}`,
-        type: 'coin',
-        lane: cLane,
-        x: this.width + 100,
-        value: 5,
-        active: true,
-        scale: 1,
-        rotation: 0,
-      });
-    } else {
-      this.collectibles.push({
-        id: `col_${Date.now()}_${Math.random()}`,
-        type: 'star',
-        lane: cLane,
-        x: this.width + 100,
-        value: 15,
-        active: true,
-        scale: 1,
-        rotation: 0,
-      });
+        this.collectibles.push({
+          id: `spot_${spot.id}_${Date.now()}_${Math.random()}`,
+          type: 'destination',
+          vibe: spot.vibe,
+          vibeName: spot.category,
+          spotName: spot.name,
+          spotIcon: spot.icon,
+          lane,
+          x: this.width + 120 + offsetX,
+          value: 25,
+          active: true,
+          scale: 1.1,
+          rotation: 0,
+        });
+      } else if (cRand < 0.75) {
+        this.collectibles.push({
+          id: `col_${Date.now()}_${Math.random()}`,
+          type: 'coin',
+          lane,
+          x: this.width + 100 + offsetX,
+          value: 5,
+          active: true,
+          scale: 1,
+          rotation: 0,
+        });
+      } else {
+        this.collectibles.push({
+          id: `col_${Date.now()}_${Math.random()}`,
+          type: 'star',
+          lane,
+          x: this.width + 100 + offsetX,
+          value: 15,
+          active: true,
+          scale: 1,
+          rotation: 0,
+        });
+      }
+    };
+
+    // Spawn collectible in first free lane
+    if (freeLanes.length > 0) {
+      spawnItemInLane(freeLanes[0], 0);
+    }
+
+    // In 2-player modes (Vs Bot or PvP), also spawn in second free lane with slight offset
+    // so both players have an equal, balanced opportunity to collect points!
+    if (this.gameMode !== 'solo' && freeLanes.length > 1) {
+      spawnItemInLane(freeLanes[1], 40);
     }
   }
 
