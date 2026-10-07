@@ -30,6 +30,8 @@ import {
   Navigation,
   ArrowLeft,
   Settings2,
+  WifiOff,
+  Download,
 } from 'lucide-react';
 import { GameEngine, CITY_ITINERARIES } from './engine';
 import { sounds } from './audio';
@@ -108,6 +110,37 @@ export default function App() {
     p2Stats?: { score: number; distance: number; destinations: number; time: number };
   } | null>(null);
   const [savedRank, setSavedRank] = useState<number | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredInstallPrompt(null);
+    }
+  };
 
   // Initialize Game Engine
   useEffect(() => {
@@ -524,6 +557,29 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Offline Mode Indicator */}
+            {!isOnline && (
+              <div
+                className="flex items-center gap-1 bg-amber-500/10 text-amber-800 border border-amber-300 px-2 sm:px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-black shadow-sm"
+                title="Mode Offline Aktif: Game dapat dimainkan 100% tanpa internet!"
+              >
+                <WifiOff className="w-3 h-3 text-amber-600 animate-pulse" />
+                <span className="hidden xs:inline">Offline</span>
+              </div>
+            )}
+
+            {/* PWA Install Button */}
+            {deferredInstallPrompt && (
+              <button
+                onClick={handleInstallApp}
+                className="flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2 sm:px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-black transition press"
+                title="Pasang aplikasi di perangkat untuk main offline"
+              >
+                <Download className="w-3 h-3 text-emerald-600" />
+                <span className="hidden sm:inline">Pasang Game</span>
+              </button>
             )}
 
             {/* Sound Toggle */}
@@ -1264,6 +1320,16 @@ export default function App() {
                       <div>
                         <strong className="text-ink-900 block mb-0.5">Dynamic AI Weather Rerouting:</strong>
                         Saat badai hujan melanda, TinTin AI otomatis merutekan ulang rute ke destinasi indoor aman dengan perisai pelindung & hujan bonus!
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5 bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-300">
+                      <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0 border border-emerald-300">
+                        4
+                      </span>
+                      <div>
+                        <strong className="text-emerald-950 block mb-0.5">100% Dukungan Offline (PWA):</strong>
+                        Game ini berjalan penuh tanpa internet setelah pertama kali dibuka! AI Bot, efek suara, semua kota & mode (Solo, Vs Bot, PvP) tersimpan di perangkat Anda.
                       </div>
                     </div>
                   </div>

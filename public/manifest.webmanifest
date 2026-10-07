@@ -1,0 +1,26 @@
+{
+  "name": "Beat the Storm — Pavey AI Travel Game",
+  "short_name": "Pavey Game",
+  "description": "Game survival AI Travel Companion bertema kota wisata Indonesia & dunia. 100% dapat dimainkan secara offline!",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1020",
+  "theme_color": "#3B5BFF",
+  "categories": ["games", "arcade", "travel"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/mascot.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
