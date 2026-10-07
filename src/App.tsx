@@ -32,6 +32,8 @@ import {
   Settings2,
   WifiOff,
   Download,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { GameEngine, CITY_ITINERARIES } from './engine';
 import { sounds } from './audio';
@@ -39,6 +41,7 @@ import type { CityTheme, GameMode, GamePhase, GameSettings, LeaderboardEntry, St
 
 const LEADERBOARD_KEY = 'pavey_beat_the_storm_leaderboard';
 const PAVEY_APP_URL = 'https://frontend-sage-ten-29.vercel.app/';
+const GAME_URL = 'https://game-eosin-omega-76.vercel.app/';
 
 const DEFAULT_LEADERBOARD: LeaderboardEntry[] = [
   { id: '1', name: 'TIN', score: 1540, distance: 980, destinations: 18, timeSurvived: 82, date: '2026-08-21', city: 'medan', mode: 'solo', dayReached: 2 },
@@ -139,6 +142,15 @@ export default function App() {
     const { outcome } = await deferredInstallPrompt.userChoice;
     if (outcome === 'accepted') {
       setDeferredInstallPrompt(null);
+    }
+  };
+
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const handleCopyLink = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(GAME_URL);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
     }
   };
 
@@ -1348,72 +1360,108 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* ── QR CODE CTA MODAL ── */}
+          {/* ── QR CODE CTA MODAL (PAVEY BRANDED QR HUB) ── */}
           <AnimatePresence>
             {showQrModal && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-ink-900/60 backdrop-blur-sm"
+                className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-ink-900/65 backdrop-blur-md overflow-y-auto"
               >
                 <motion.div
-                  initial={{ scale: 0.85 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.85 }}
-                  className="max-w-sm w-full bg-white rounded-3xl p-6 shadow-2xl border border-ink-100 text-center text-ink-900"
+                  initial={{ scale: 0.88, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.88, opacity: 0 }}
+                  className="max-w-sm w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border-2 border-brand-100 text-center text-ink-900 relative my-auto"
                 >
-                  <div className="w-12 h-12 rounded-full bg-brand-50 border border-brand-200 text-brand-600 mx-auto mb-2.5 flex items-center justify-center">
-                    <Compass className="w-6 h-6" />
+                  {/* Top Mascot Icon Header */}
+                  <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 border-2 border-white shadow-glow mx-auto mb-3 flex items-center justify-center text-white">
+                    <img src="/favicon.svg" alt="TinTin" className="w-8 h-8 rounded-lg filter drop-shadow" />
+                    <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-black text-[9px] shadow-sm">
+                      PWA
+                    </span>
                   </div>
 
-                  <h3 className="font-display font-black text-xl text-ink-900 mb-1">COBA PAVEY APP</h3>
-                  <p className="text-xs text-ink-500 mb-4">
-                    Buat itinerary liburan otomatis dengan fitur AI Weather Rerouting dan Expense Wallet terintegrasi!
+                  <h3 className="font-display font-black text-lg sm:text-xl text-ink-900 mb-0.5 tracking-tight">
+                    MAIN DI HP &amp; OFFLINE
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-ink-500 mb-3.5 leading-relaxed">
+                    Scan QR dengan kamera HP untuk bermain. Sekali dibuka, game <strong>100% bisa dimainkan tanpa internet!</strong>
                   </p>
 
-                  <div className="bg-ink-50 p-3.5 rounded-3xl border border-ink-200 inline-block mb-4">
-                    <svg width="150" height="150" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="180" height="180" rx="16" fill="white" />
-                      <rect x="20" y="20" width="40" height="40" rx="6" fill="#0B1020" />
-                      <rect x="28" y="28" width="24" height="24" rx="3" fill="white" />
-                      <rect x="34" y="34" width="12" height="12" rx="2" fill="#3B5BFF" />
-
-                      <rect x="120" y="20" width="40" height="40" rx="6" fill="#0B1020" />
-                      <rect x="128" y="28" width="24" height="24" rx="3" fill="white" />
-                      <rect x="134" y="34" width="12" height="12" rx="2" fill="#3B5BFF" />
-
-                      <rect x="20" y="120" width="40" height="40" rx="6" fill="#0B1020" />
-                      <rect x="28" y="128" width="24" height="24" rx="3" fill="white" />
-                      <rect x="34" y="134" width="12" height="12" rx="2" fill="#3B5BFF" />
-
-                      <rect x="70" y="24" width="12" height="12" fill="#0B1020" />
-                      <rect x="88" y="36" width="16" height="8" fill="#0B1020" />
-                      <rect x="72" y="52" width="20" height="10" fill="#3B5BFF" />
-                      <rect x="24" y="70" width="16" height="16" fill="#0B1020" />
-                      <rect x="48" y="76" width="12" height="12" fill="#3B5BFF" />
-                      <rect x="70" y="70" width="40" height="40" rx="8" fill="#3B5BFF" />
-                      <circle cx="90" cy="90" r="12" fill="white" />
-                      <rect x="120" y="72" width="14" height="14" fill="#0B1020" />
-                      <rect x="142" y="80" width="16" height="12" fill="#0B1020" />
-                      <rect x="72" y="120" width="14" height="14" fill="#0B1020" />
-                      <rect x="94" y="124" width="12" height="16" fill="#3B5BFF" />
-                      <rect x="116" y="120" width="20" height="20" fill="#0B1020" />
-                      <rect x="144" y="138" width="14" height="18" fill="#3B5BFF" />
-                    </svg>
+                  {/* ── Branded QR Code Container with Central TinTin Badge ── */}
+                  <div className="relative inline-block p-3 sm:p-3.5 bg-white rounded-3xl border-2 border-brand-200/90 shadow-card mb-3.5 group">
+                    <div className="relative w-44 h-44 sm:w-48 sm:h-48 rounded-2xl overflow-hidden bg-white flex items-center justify-center">
+                      <img
+                        src="/qr-game.png"
+                        alt="QR Code Beat the Storm Pavey Game"
+                        className="w-full h-full object-contain"
+                      />
+                      {/* Center Pavey Badge Logo */}
+                      <div className="absolute inset-0 m-auto w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white border-2 border-brand-500 shadow-md flex items-center justify-center p-1 pointer-events-none">
+                        <img src="/mascot.svg" alt="Pavey" className="w-full h-full object-contain" />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  {/* Click-to-Copy URL Bar */}
+                  <div className="flex items-center justify-between gap-2 bg-ink-50 p-2 sm:p-2.5 rounded-2xl border border-ink-200 mb-3 text-left">
+                    <div className="truncate text-[11px] font-mono text-ink-700 select-all font-semibold pl-1">
+                      game-eosin-omega-76.vercel.app
+                    </div>
                     <button
-                      onClick={openPaveyApp}
-                      className="w-full py-3.5 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-display font-black text-xs shadow-glow press flex items-center justify-center gap-1.5"
+                      onClick={handleCopyLink}
+                      className="px-2.5 py-1 rounded-xl bg-white hover:bg-brand-50 text-brand-600 font-bold text-[11px] border border-brand-200 shrink-0 flex items-center gap-1 shadow-sm transition press"
                     >
-                      <span>Buka Pavey App Sekarang</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span className="text-emerald-700">Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Salin</span>
+                        </>
+                      )}
                     </button>
+                  </div>
+
+                  {/* Offline Tips Box */}
+                  <div className="bg-emerald-500/10 border border-emerald-300 p-2.5 rounded-2xl text-[11px] text-emerald-950 text-left mb-3.5 flex items-start gap-2">
+                    <span className="text-emerald-600 text-sm">💡</span>
+                    <p className="leading-snug">
+                      <strong>Cara Main Offline:</strong> Buka link sekali saat ada kuota/Wi-Fi, lalu tekan <em>&quot;Pasang Game / Add to Home Screen&quot;</em>. Setelah itu bebas main di mana pun tanpa internet!
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="/qr-game.png"
+                        download="Pavey-Beat-The-Storm-QR.png"
+                        className="py-2.5 px-2 rounded-2xl bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs border border-brand-200 press flex items-center justify-center gap-1 shadow-sm"
+                        title="Download file gambar QR untuk dicetak atau dibagikan"
+                      >
+                        <Download className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Unduh QR</span>
+                      </a>
+                      <a
+                        href="/pavey-qr-standee.svg"
+                        download="Pavey-Standee-Poster.svg"
+                        className="py-2.5 px-2 rounded-2xl bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs border border-brand-200 press flex items-center justify-center gap-1 shadow-sm"
+                        title="Download template poster standee meja vektor"
+                      >
+                        <Compass className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Poster Meja</span>
+                      </a>
+                    </div>
+
                     <button
                       onClick={() => setShowQrModal(false)}
-                      className="w-full py-2 rounded-2xl bg-ink-50 hover:bg-ink-100 text-ink-700 font-bold text-xs border border-ink-200 press"
+                      className="w-full py-2.5 rounded-2xl bg-ink-100 hover:bg-ink-200 text-ink-800 font-bold text-xs transition press"
                     >
                       Tutup
                     </button>

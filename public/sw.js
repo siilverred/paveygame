@@ -1,10 +1,13 @@
-const CACHE_NAME = 'pavey-storm-v1.2';
+const CACHE_NAME = 'pavey-storm-v1.3';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/favicon.svg',
   '/mascot.svg',
+  '/qr-game.svg',
+  '/qr-game.png',
+  '/pavey-qr-standee.svg',
   '/manifest.webmanifest',
 ];
 
