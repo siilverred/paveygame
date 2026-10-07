@@ -135,8 +135,8 @@ export class GameEngine {
   public completedSpotIds: string[] = [];
   private spotSpawnIndex: number = 0;
 
-  public baseSpeed: number = 280;
-  public currentSpeed: number = 280;
+  public baseSpeed: number = 270;
+  public currentSpeed: number = 270;
   public runDistance: number = 0;
   public runTime: number = 0;
   public animTime: number = 0;
@@ -203,7 +203,7 @@ export class GameEngine {
       targetLane: initialLane,
       laneTransitionProgress: 1,
       lives: 3,
-      maxLives: 4,
+      maxLives: 3,
       invincibleTimer: 0,
       isInvincible: false,
       score: 0,
@@ -397,14 +397,18 @@ export class GameEngine {
       }
     }
 
-    const speedMultiplier = 1 + Math.min(0.65, this.runDistance / 3500 + (this.currentDay - 1) * 0.08);
+    // Smooth, progressive speed scaling that builds gradually the longer the player survives
+    const distanceSpeedInc = (this.runDistance / 1000) * 0.035; // +3.5% per 1,000 meters
+    const timeSpeedInc = (this.runTime / 60) * 0.04;            // +4.0% per 60 seconds
+    const daySpeedInc = (this.currentDay - 1) * 0.06;           // +6.0% per completed day
+    const speedMultiplier = 1 + Math.min(2.0, distanceSpeedInc + timeSpeedInc + daySpeedInc);
     this.currentSpeed = this.baseSpeed * speedMultiplier;
 
     this.updatePlayer(this.player1, dt);
 
     if (this.player2) {
       if (this.player2.isBot && this.player2.isAlive) {
-        this.updateBotAI(dt);
+        this.updateBotAI(dt, speedMultiplier);
       }
       this.updatePlayer(this.player2, dt);
     }
@@ -423,7 +427,7 @@ export class GameEngine {
     }
 
     this.spawnTimer += dt;
-    const targetInterval = Math.max(1.05, 1.55 / speedMultiplier);
+    const targetInterval = Math.max(0.85, 1.55 / Math.sqrt(speedMultiplier));
     if (this.spawnTimer >= targetInterval) {
       this.spawnTimer = 0;
       this.spawnEntities();
@@ -511,24 +515,25 @@ export class GameEngine {
     }
   }
 
-  private updateBotAI(dt: number) {
+  private updateBotAI(dt: number, speedMultiplier: number = 1) {
     const bot = this.player2;
     if (!bot || !bot.isAlive) return;
 
     this.botReactionTimer += dt;
-    if (this.botReactionTimer < 0.22) return;
+    if (this.botReactionTimer < 0.20) return;
     this.botReactionTimer = 0;
 
     const currentLane = bot.targetLane;
+    const lookahead = Math.min(380, 230 * Math.sqrt(speedMultiplier));
 
-    // Check danger in bot's current lane
+    // Check danger in bot's current lane ahead
     const immediateThreat = this.obstacles.find(
-      (o) => o.active && o.lane === currentLane && o.x > bot.x - 10 && o.x < bot.x + 230
+      (o) => o.active && o.lane === currentLane && o.x > bot.x - 10 && o.x < bot.x + lookahead
     );
 
     const isLaneSafe = (lane: Lane) => {
       return !this.obstacles.some(
-        (o) => o.active && o.lane === lane && o.x > bot.x - 25 && o.x < bot.x + 240
+        (o) => o.active && o.lane === lane && o.x > bot.x - 25 && o.x < bot.x + lookahead + 30
       );
     };
 
@@ -550,8 +555,7 @@ export class GameEngine {
             (c) => c.active && c.lane === lane && c.x > bot.x - 10 && c.x < bot.x + 280
           );
           if (col) {
-            if (col.type === 'heart' && bot.lives < bot.maxLives) val = 100;
-            else if (col.type === 'destination') val = 50;
+            if (col.type === 'destination') val = 50;
             else if (col.type === 'star') val = 30;
             else if (col.type === 'coin') val = 15;
           }
@@ -577,17 +581,10 @@ export class GameEngine {
           (c) => c.active && c.lane === lane && c.x > bot.x + 40 && c.x < bot.x + 260
         );
 
-        if (col) {
-          if (col.type === 'heart' && bot.lives < bot.maxLives) {
-            bot.targetLane = lane;
-            bot.laneTransitionProgress = 0;
-            break;
-          }
-          if (col.type === 'destination' || col.type === 'star') {
-            bot.targetLane = lane;
-            bot.laneTransitionProgress = 0;
-            break;
-          }
+        if (col && (col.type === 'destination' || col.type === 'star' || col.type === 'coin')) {
+          bot.targetLane = lane;
+          bot.laneTransitionProgress = 0;
+          break;
         }
       }
     }
@@ -680,24 +677,8 @@ export class GameEngine {
     const freeLanes = availableLanes.filter((l) => l !== blockedLane);
     const cLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
 
-    const anyHurt =
-      this.player1.lives < this.player1.maxLives ||
-      (this.player2 && this.player2.isAlive && this.player2.lives < this.player2.maxLives);
-
     const cRand = Math.random();
-    if (anyHurt && cRand < 0.16) {
-      // Spawn Heart Collectible for healing!
-      this.collectibles.push({
-        id: `heart_${Date.now()}_${Math.random()}`,
-        type: 'heart',
-        lane: cLane,
-        x: this.width + 100,
-        value: 10,
-        active: true,
-        scale: 1.15,
-        rotation: 0,
-      });
-    } else if (cRand < 0.52) {
+    if (cRand < 0.50) {
       const cityDaySpots = getCityDaySpots(this.currentCity, this.currentDay);
       const spot = cityDaySpots[this.spotSpawnIndex % cityDaySpots.length];
       this.spotSpawnIndex++;
@@ -716,7 +697,7 @@ export class GameEngine {
         scale: 1.1,
         rotation: 0,
       });
-    } else if (cRand < 0.82) {
+    } else if (cRand < 0.80) {
       this.collectibles.push({
         id: `col_${Date.now()}_${Math.random()}`,
         type: 'coin',
@@ -745,17 +726,16 @@ export class GameEngine {
     const cityDaySpots = getCityDaySpots(this.currentCity, this.currentDay);
     for (let i = 0; i < 6; i++) {
       const spot = cityDaySpots[i % cityDaySpots.length];
-      const isHeart = i === 2;
       this.collectibles.push({
         id: `bonus_${i}_${Date.now()}`,
-        type: isHeart ? 'heart' : i % 2 === 0 ? 'destination' : 'star',
+        type: i % 2 === 0 ? 'destination' : 'star',
         vibe: spot.vibe,
         vibeName: spot.category,
         spotName: spot.name,
         spotIcon: spot.icon,
         lane: (i % 3) as Lane,
         x: this.width + 100 + i * 130,
-        value: isHeart ? 10 : i % 2 === 0 ? 30 : 15,
+        value: i % 2 === 0 ? 30 : 15,
         active: true,
         scale: 1.15,
         rotation: 0,
@@ -816,15 +796,6 @@ export class GameEngine {
       p.speedBoostTimer = 2.5;
       sounds.playStar();
       this.addFloatingText(`+${col.value} BOOST!`, pX, pY - 22, '#A855F7', 15);
-    } else if (col.type === 'heart') {
-      if (p.lives < p.maxLives) {
-        p.lives += 1;
-        this.addFloatingText('+1 ❤️', pX, pY - 26, '#10B981', 16);
-      } else {
-        p.score += 25;
-        this.addFloatingText('+25 FULL HP', pX, pY - 26, '#10B981', 14);
-      }
-      sounds.playHeal();
     } else if (col.type === 'destination') {
       p.destinationsCollected += 1;
       sounds.playDestination();
@@ -853,16 +824,14 @@ export class GameEngine {
           this.currentDay++;
           this.completedSpotIds = [];
 
-          // Fair reward for all active surviving players
+          // Fair reward for all active surviving players (Score only - strict permanent life depletion)
           if (this.player1.isAlive) {
             this.player1.score += 100;
-            if (this.player1.lives < this.player1.maxLives) this.player1.lives += 1;
-            this.addFloatingText('+100 XP +1❤️', this.player1.x, this.getPlayerRenderY(this.player1) - 36, '#F59E0B', 16);
+            this.addFloatingText('+100 XP CLEAR!', this.player1.x, this.getPlayerRenderY(this.player1) - 36, '#F59E0B', 16);
           }
           if (this.player2 && this.player2.isAlive) {
             this.player2.score += 100;
-            if (this.player2.lives < this.player2.maxLives) this.player2.lives += 1;
-            this.addFloatingText('+100 XP +1❤️', this.player2.x, this.getPlayerRenderY(this.player2) - 36, '#F59E0B', 16);
+            this.addFloatingText('+100 XP CLEAR!', this.player2.x, this.getPlayerRenderY(this.player2) - 36, '#F59E0B', 16);
           }
 
           sounds.playHighScore();

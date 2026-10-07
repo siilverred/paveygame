@@ -568,7 +568,7 @@ export default function App() {
                       P1
                     </span>
                     <div className="flex items-center gap-0.5 sm:gap-1">
-                      {[1, 2, 3, 4].map((heartIndex) => (
+                      {[1, 2, 3].map((heartIndex) => (
                         <Heart
                           key={heartIndex}
                           className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
@@ -589,7 +589,7 @@ export default function App() {
                         {gameMode === 'vs_bot' ? 'BOT' : 'P2'}
                       </span>
                       <div className="flex items-center gap-0.5 sm:gap-1">
-                        {[1, 2, 3, 4].map((heartIndex) => (
+                        {[1, 2, 3].map((heartIndex) => (
                           <Heart
                             key={heartIndex}
                             className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
@@ -1242,8 +1242,8 @@ export default function App() {
                         1
                       </span>
                       <div>
-                        <strong className="text-ink-900 block mb-0.5">Kumpulkan Checkpoint & Hati:</strong>
-                        Ambil pin destinasi wisata (📍), koin ($), bintang boost (⭐), dan <strong>Hati (❤️ +1 Nyawa)</strong>! Kumpulkan 4 spot di setiap hari untuk lanjut ke Hari berikutnya (+100 XP & bonus nyawa)!
+                        <strong className="text-ink-900 block mb-0.5">Kumpulkan Destinasi & Poin:</strong>
+                        Ambil pin destinasi wisata (📍), koin ($), dan bintang boost (⭐)! Kumpulkan 4 spot di setiap hari untuk lanjut ke Hari berikutnya (+100 XP)! Hati-hati: <strong>Nyawa tidak bisa bertambah/regenerasi</strong> setelah berkurang!
                       </div>
                     </div>
 
@@ -1252,8 +1252,8 @@ export default function App() {
                         2
                       </span>
                       <div>
-                        <strong className="text-ink-900 block mb-0.5">Kontrol & Durasi Game:</strong>
-                        P1: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">W</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">S</kbd> atau Panah • P2: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">Panah</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">I-K</kbd>. Game <strong>TIDAK MENGGUNAKAN TIMER</strong> dan hanya berakhir jika salah satu pemain kehabisan nyawa!
+                        <strong className="text-ink-900 block mb-0.5">Kontrol, Kecepatan & Survival:</strong>
+                        P1: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">W</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">S</kbd> atau Panah • P2: <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">Panah</kbd>/<kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-ink-800 border border-ink-200 text-xs">I-K</kbd>. Game <strong>TIDAK ADA TIMER</strong>, speed bertambah perlahan-lahan seiring jarak & waktu tempuh, dan game berakhir saat nyawa (3 ❤️) habis!
                       </div>
                     </div>
 

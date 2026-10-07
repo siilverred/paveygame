@@ -6,7 +6,7 @@ export type GameMode = 'solo' | 'vs_bot' | 'pvp';
 
 export type ObstacleType = 'tourist_crowd' | 'construction' | 'water_hazard' | 'luggage_pile';
 
-export type CollectibleType = 'destination' | 'coin' | 'star' | 'heart';
+export type CollectibleType = 'destination' | 'coin' | 'star';
 
 export type DestinationVibe = 'nature' | 'cafe' | 'activities' | 'cultural' | 'balanced';
 

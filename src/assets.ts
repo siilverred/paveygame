@@ -437,42 +437,6 @@ export function drawCollectible(
 
     drawStar(ctx, 0, 0, 5, 20, 9, '#FACC15', '#EA580C');
     ctx.restore();
-  } else if (col.type === 'heart') {
-    ctx.save();
-    const pulse = 1 + Math.sin(animTime * 8) * 0.15;
-    ctx.scale(pulse, pulse);
-
-    // Outer glow aura
-    ctx.beginPath();
-    ctx.arc(0, 0, 24, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
-    ctx.fill();
-
-    // Heart shape drawing
-    ctx.fillStyle = '#F43F5E';
-    ctx.beginPath();
-    ctx.moveTo(0, 14);
-    ctx.bezierCurveTo(-18, -2, -18, -14, 0, -4);
-    ctx.bezierCurveTo(18, -14, 18, -2, 0, 14);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-
-    // Heart shine reflection
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.beginPath();
-    ctx.arc(-5, -6, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Floating text label
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px "Plus Jakarta Sans", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('+1', 0, 1);
-    ctx.restore();
   } else if (col.type === 'destination') {
     const vibe = col.vibe || 'cultural';
     let color = '#3B5BFF';
