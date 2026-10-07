@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host --port 5174",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/build_singlefile.js",
+    "build:singlefile": "node scripts/build_singlefile.js",
+    "serve:offline": "node scripts/offline_server.js",
     "preview": "vite preview --port 5174"
   },
   "dependencies": {
